@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>學測數學解題站</title>
+<script>
+  MathJax = { tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+<style>
+  :root {
+    --bg: #f5f6fa; --card: #fff; --ink: #1f2433; --muted: #6b7280;
+    --brand: #4f46e5; --brand-soft: #eef2ff; --line: #e5e7eb; --ok: #059669;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif; line-height: 1.7; }
+  header { background: linear-gradient(135deg, #4f46e5, #6366f1); color: #fff; padding: 28px 20px 22px; }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  header h1 { margin: 0 0 4px; font-size: 24px; }
+  header p { margin: 0; opacity: .9; font-size: 14px; }
+  .topbar { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .search { flex: 1; min-width: 200px; padding: 11px 14px; border: none; border-radius: 10px; font-size: 15px; outline: none; }
+  .btn-ask { background: #fff; color: var(--brand); text-decoration: none; font-weight: 700; padding: 11px 18px; border-radius: 10px; white-space: nowrap; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; padding: 16px 20px 0; max-width: 860px; margin: 0 auto; }
+  .chip { border: 1px solid var(--line); background: #fff; color: var(--muted); padding: 6px 13px; border-radius: 999px; font-size: 13px; cursor: pointer; }
+  .chip.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+  main { max-width: 860px; margin: 0 auto; padding: 18px 20px 60px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-bottom: 16px; }
+  .meta { display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); margin-bottom: 8px; flex-wrap: wrap; }
+  .tag { background: var(--brand-soft); color: var(--brand); padding: 2px 9px; border-radius: 6px; font-weight: 600; }
+  .q { font-size: 16px; font-weight: 600; margin: 2px 0 6px; white-space: pre-wrap; }
+  .qimg { max-width: 100%; border-radius: 10px; margin: 8px 0; border: 1px solid var(--line); }
+  .reveal { margin-top: 10px; background: var(--brand-soft); color: var(--brand); border: none; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .answer { display: none; margin-top: 12px; padding-top: 14px; border-top: 1px dashed var(--line); }
+  .answer.open { display: block; }
+  .answer .lbl { color: var(--ok); font-weight: 700; font-size: 13px; }
+  .answer h4 { margin: 16px 0 4px; font-size: 15px; color: var(--brand); font-weight: 700; }
+  .answer p { margin: 7px 0; }
+  .answer ul, .answer ol { margin: 7px 0; padding-left: 22px; }
+  .answer .key { background: #fff7ed; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 10px 14px; margin: 10px 0; }
+  .answer .eg { background: #f8fafc; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; margin: 10px 0; }
+  .answer .ans { background: #ecfdf5; border: 1px solid #34d399; border-radius: 8px; padding: 12px 16px; margin: 16px 0; font-weight: 600; }
+  .answer .dia { font-family: "Consolas","Courier New",monospace; white-space: pre; overflow-x: auto; background: #f6f8fa; color: #1f2433; border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; margin: 10px 0; line-height: 1.5; font-size: 13.5px; }
+  .answer .r { color: #dc2626; font-weight: 700; }
+  .answer .g { color: #059669; font-weight: 700; }
+  .answer .b { color: #2563eb; font-weight: 700; }
+  .answer table { border-collapse: collapse; margin: 10px 0; width: 100%; }
+  .answer th, .answer td { border: 1px solid var(--line); padding: 6px 10px; text-align: center; font-size: 14px; }
+  .answer th { background: var(--brand-soft); color: var(--brand); }
+  .state { text-align: center; color: var(--muted); padding: 44px 0; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>📚 學測數學解題站</h1>
+    <p>同學上傳題目，老師審過的解答都在這裡 — 大家都看得到</p>
+    <div class="topbar">
+      <input class="search" id="search" placeholder="🔍 搜尋題目、章節、關鍵字…">
+      <a class="btn-ask" href="upload.html">✏️ 我要問問題</a>
+    </div>
+  </div>
+</header>
+
+<div class="chips" id="chips">
+  <span class="chip active" data-cat="all">全部</span>
+  <span class="chip" data-cat="高一">高一</span>
+  <span class="chip" data-cat="數A">數A</span>
+  <span class="chip" data-cat="數B">數B</span>
+</div>
+
+<main id="list">
+  <p class="state" id="state">載入中…</p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+  var listEl = document.getElementById('list');
+  var stateEl = document.getElementById('state');
+  var curCat = 'all', curQ = '';
+  var rows = [];
+
+  function esc(s) { return (s || '').replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+
+  function cardHtml(r) {
+    var date = r.published_at ? r.published_at.slice(0, 10) : '';
+    var img = r.image_url ? '<img class="qimg" src="' + esc(r.image_url) + '" alt="題目照片">' : '';
+    var qt = r.question_text ? '<div class="q">' + esc(r.question_text) + '</div>' : '';
+    return '' +
+      '<article class="card" data-cat="' + esc(r.grade) + '" data-search="' + esc((r.grade || '') + ' ' + (r.chapter || '') + ' ' + (r.question_text || '') + ' ' + (r.answer || '')).toLowerCase() + '">' +
+        '<div class="meta"><span class="tag">' + esc(r.grade) + '・' + esc(r.chapter) + '</span><span>' + date + '</span></div>' +
+        qt + img +
+        '<button class="reveal">看解答 ▾</button>' +
+        '<div class="answer"><span class="lbl">✓ 老師已審核</span><div>' + (r.answer || '') + '</div></div>' +
+      '</article>';
+  }
+
+  function render() {
+    var html = rows.filter(function (r) {
+      var okCat = curCat === 'all' || r.grade === curCat;
+      var hay = ((r.grade || '') + ' ' + (r.chapter || '') + ' ' + (r.question_text || '') + ' ' + (r.answer || '')).toLowerCase();
+      var okQ = curQ === '' || hay.indexOf(curQ) > -1;
+      return okCat && okQ;
+    }).map(cardHtml).join('');
+    if (!html) { listEl.innerHTML = '<p class="state">' + (rows.length ? '找不到符合的題目 🥲' : '目前還沒有已發布的題目，敬請期待 😊') + '</p>'; return; }
+    listEl.innerHTML = html;
+    if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([listEl]);
+  }
+
+  async function load() {
+    var res = await sb.from('public_questions').select('*').order('published_at', { ascending: false });
+    if (res.error) { stateEl.textContent = '載入失敗：' + res.error.message; return; }
+    rows = res.data || [];
+    render();
+  }
+
+  document.getElementById('search').addEventListener('input', function () { curQ = this.value.trim().toLowerCase(); render(); });
+  document.getElementById('chips').addEventListener('click', function (e) {
+    if (!e.target.classList.contains('chip')) return;
+    document.querySelector('.chip.active').classList.remove('active');
+    e.target.classList.add('active');
+    curCat = e.target.dataset.cat; render();
+  });
+  document.addEventListener('click', function (e) {
+    if (!e.target.classList.contains('reveal')) return;
+    var ans = e.target.nextElementSibling;
+    ans.classList.toggle('open');
+    e.target.textContent = ans.classList.contains('open') ? '收合解答 ▴' : '看解答 ▾';
+  });
+
+  load();
+</script>
+</body>
+</html>
