@@ -44,11 +44,13 @@
   #done a { color:var(--brand); }
   .countdown { background:var(--brand-soft); color:var(--brand); font-weight:700; border-radius:10px; padding:10px 14px; margin:10px 0 6px; font-size:15px; }
   .countdown b { font-size:22px; }
-  .quote { display:flex; flex-wrap:wrap; justify-content:center; gap:5px; margin:6px 0 18px; }
+  .quote { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin:6px 0 18px; }
   .quote span { display:inline-grid; place-items:center; min-width:1.5em; padding:5px 7px; font-size:21px; line-height:1;
     font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif; font-weight:900; color:#5a3242;
-    background:linear-gradient(#fff,#fdeaf2); border:2px solid #f2a6c3; border-radius:9px; box-shadow:0 2px 0 #e386ab; }
+    background:linear-gradient(#fff,#fdeaf2); border:2px solid #f2a6c3; border-radius:9px; box-shadow:0 2px 0 #e386ab;
+    animation: quotePop .5s cubic-bezier(.2,.7,.3,1.2) both; }
   .quote span.sep { border:none; background:none; box-shadow:none; min-width:auto; padding:0 1px; color:#b98aa0; }
+  @keyframes quotePop { from { opacity:0; transform: translateY(12px) scale(.9); } to { opacity:1; transform: none; } }
 </style>
 </head>
 <body>
@@ -131,10 +133,11 @@
                 : '2027 學測已結束，辛苦了 💪';
     var q = document.getElementById('quote'), text = QUOTES[Math.floor(Math.random() * QUOTES.length)];
     q.innerHTML = '';
-    text.split('').forEach(function (ch) {
+    text.split('').forEach(function (ch, i) {
       var s = document.createElement('span');
       if (/[，、。！？·]/.test(ch)) s.className = 'sep';
       s.textContent = ch;
+      s.style.animationDelay = (i * 0.07) + 's';   // 逐字階梯延遲，一個接一個淡入浮現
       q.appendChild(s);
     });
   }
