@@ -16,7 +16,8 @@
   header h1 { margin:0; font-size:22px; }
   header a { color:#fff; opacity:.9; font-size:14px; text-decoration:none; }
   main { max-width:620px; margin:0 auto; padding:24px 20px 60px; }
-  .panel { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:26px 22px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:26px 22px; animation: fadeIn .45s ease both; }
+  @keyframes fadeIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: none; } }
   .gate { text-align:center; }
   .gate .lock { font-size:40px; }
   .gate h2 { margin:8px 0 4px; }
@@ -61,8 +62,6 @@
 
   <!-- 登入 -->
   <div class="panel gate" id="login" style="display:none">
-    <div class="lock">🔒</div>
-    <h2>請先用學校帳號登入</h2>
     <div class="countdown" id="gsat">—</div>
     <div class="quote" id="quote"></div>
     <p>只接受 <b>@tkgsh.tn.edu.tw</b> 的 Google 帳號</p>
@@ -71,7 +70,6 @@
       使用學校 Google 帳號登入
     </button>
     <div class="err" id="loginerr" style="display:none"></div>
-    <div class="note">🔐 僅限學校網域帳號；登入即代表你是本校同學</div>
   </div>
 
   <!-- 上傳表單 -->
