@@ -49,14 +49,6 @@
 <main>
   <p class="panel gate" id="loading">載入中…</p>
 
-  <!-- 未開放時段 -->
-  <div class="panel gate" id="closed" style="display:none">
-    <div class="lock">⏰</div>
-    <h2>目前未開放上傳</h2>
-    <p>每天 <b>中午 12:00 ～ 晚上 21:00</b>（台灣時間）才能上傳題目<br>現在是 <span id="nowtime"></span>，請於開放時間再來 😊</p>
-    <a class="gbtn" href="index.html" style="text-decoration:none">先去逛逛題庫 →</a>
-  </div>
-
   <!-- 登入 -->
   <div class="panel gate" id="login" style="display:none">
     <div class="lock">🔒</div>
@@ -105,8 +97,8 @@
 <script src="config.js"></script>
 <script>
   var els = {};
-  ['loading','closed','login','form','done'].forEach(function (id) { els[id] = document.getElementById(id); });
-  function show(id) { ['loading','closed','login','form','done'].forEach(function (k) { els[k].style.display = (k === id) ? 'block' : 'none'; }); }
+  ['loading','login','form','done'].forEach(function (id) { els[id] = document.getElementById(id); });
+  function show(id) { ['loading','login','form','done'].forEach(function (k) { els[k].style.display = (k === id) ? 'block' : 'none'; }); }
 
   function showError(el, msg) { el.style.display = 'block'; el.textContent = msg; }
 
@@ -140,7 +132,6 @@
     if (!grade) return showError(formerr, '請先選擇年級');
     if (!chapter) return showError(formerr, '請先填寫章節');
     if (!qtext && !file) return showError(formerr, '請至少拍照或打字其中一種');
-    if (!isOpenNow()) return showError(formerr, '目前非開放時段（12:00–21:00），無法送出');
 
     btn.disabled = true; btn.textContent = '上傳中…';
     try {
@@ -162,9 +153,8 @@
     }
   });
 
-  // 初始化：判斷開放時段 → 登入狀態 → 網域
+  // 初始化：登入狀態 → 網域
   async function init() {
-    if (!isOpenNow()) { document.getElementById('nowtime').textContent = '台灣時間 ' + taipeiNow().txt; show('closed'); return; }
     var session = (await sb.auth.getSession()).data.session;
     if (!session) { show('login'); return; }
     var email = (session.user.email || '').toLowerCase();
