@@ -133,12 +133,11 @@
                 : '2027 學測已結束，辛苦了 💪';
     var q = document.getElementById('quote'), text = QUOTES[Math.floor(Math.random() * QUOTES.length)];
     q.innerHTML = '';
-    text.split('').forEach(function (ch, i) {
+    text.split('').forEach(function (ch) {
       var s = document.createElement('span');
       if (/[，、。！？·]/.test(ch)) s.className = 'sep';
       s.textContent = ch;
-      s.style.animationDelay = (i * 0.16) + 's';   // 逐字階梯延遲，一個接一個由淡到深慢慢浮現
-      q.appendChild(s);
+      q.appendChild(s);   // 不逐字延遲：整排同時由透明慢慢淡入
     });
   }
 
