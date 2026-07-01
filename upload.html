@@ -42,15 +42,19 @@
   #done h2 { margin:8px 0; color:var(--ok); }
   #done p { color:var(--muted); }
   #done a { color:var(--brand); }
-  .countdown { background:var(--brand-soft); color:var(--brand); font-weight:700; border-radius:10px; padding:10px 14px; margin:10px 0 6px; font-size:15px; }
+  .countdown { background:var(--brand-soft); color:var(--brand); font-weight:700; border-radius:10px; padding:10px 14px; margin:10px 0 26px; font-size:15px; }
   .countdown b { font-size:22px; }
-  .quote { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin:6px 0 18px; }
+  .quote { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin:0 0 30px; }
   .quote span { display:inline-grid; place-items:center; min-width:1.5em; padding:5px 7px; font-size:21px; line-height:1;
     font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif; font-weight:900; color:#5a3242;
     background:linear-gradient(#fff,#fdeaf2); border:2px solid #f2a6c3; border-radius:9px; box-shadow:0 2px 0 #e386ab;
-    animation: quotePop .5s cubic-bezier(.2,.7,.3,1.2) both; }
+    animation: quoteDrift .8s cubic-bezier(.25,.8,.3,1) both; }
   .quote span.sep { border:none; background:none; box-shadow:none; min-width:auto; padding:0 1px; color:#b98aa0; }
-  @keyframes quotePop { from { opacity:0; transform: translateY(12px) scale(.9); } to { opacity:1; transform: none; } }
+  @keyframes quoteDrift {
+    0%   { opacity:0; transform: translateX(-28px) translateY(-6px) rotate(-9deg) scale(.88); }
+    60%  { opacity:1; transform: translateX(4px)  translateY(3px)  rotate(4deg)  scale(1.04); }
+    100% { opacity:1; transform: none; }
+  }
 </style>
 </head>
 <body>
@@ -137,7 +141,7 @@
       var s = document.createElement('span');
       if (/[，、。！？·]/.test(ch)) s.className = 'sep';
       s.textContent = ch;
-      s.style.animationDelay = (i * 0.07) + 's';   // 逐字階梯延遲，一個接一個淡入浮現
+      s.style.animationDelay = (i * 0.16) + 's';   // 逐字階梯延遲，像花瓣一片片由左飄入
       q.appendChild(s);
     });
   }
