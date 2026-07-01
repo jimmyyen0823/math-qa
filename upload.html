@@ -38,6 +38,11 @@
   #done h2 { margin:8px 0; color:var(--ok); }
   #done p { color:var(--muted); }
   #done a { color:var(--brand); }
+  .countdown { background:var(--brand-soft); color:var(--brand); font-weight:700; border-radius:10px; padding:10px 14px; margin:10px 0 6px; font-size:15px; }
+  .countdown b { font-size:22px; }
+  .quote { color:var(--ink); font-size:15px; margin:0 0 18px; font-weight:600; }
+  .quote::before { content:"「"; color:var(--muted); }
+  .quote::after { content:"」"; color:var(--muted); }
 </style>
 </head>
 <body>
@@ -53,6 +58,8 @@
   <div class="panel gate" id="login" style="display:none">
     <div class="lock">🔒</div>
     <h2>請先用學校帳號登入</h2>
+    <div class="countdown" id="gsat">—</div>
+    <div class="quote" id="quote"></div>
     <p>只接受 <b>@tkgsh.tn.edu.tw</b> 的 Google 帳號</p>
     <button class="gbtn" id="gbtn">
       <svg class="gicon" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.8-6.8C35.6 2.4 30.1 0 24 0 14.6 0 6.4 5.4 2.5 13.3l7.9 6.1C12.3 13.3 17.6 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.5 3-2.2 5.5-4.7 7.2l7.3 5.7c4.3-3.9 6.8-9.7 6.8-17.4z"/><path fill="#FBBC05" d="M10.4 28.4c-.5-1.5-.8-3.1-.8-4.9s.3-3.4.8-4.9l-7.9-6.1C.9 16 0 19.9 0 23.5s.9 7.5 2.5 11l7.9-6.1z"/><path fill="#34A853" d="M24 47c6.1 0 11.3-2 15-5.5l-7.3-5.7c-2 1.4-4.6 2.2-7.7 2.2-6.4 0-11.7-3.8-13.6-9.1l-7.9 6.1C6.4 42.6 14.6 47 24 47z"/></svg>
@@ -98,9 +105,29 @@
 <script>
   var els = {};
   ['loading','login','form','done'].forEach(function (id) { els[id] = document.getElementById(id); });
-  function show(id) { ['loading','login','form','done'].forEach(function (k) { els[k].style.display = (k === id) ? 'block' : 'none'; }); }
+  function show(id) {
+    ['loading','login','form','done'].forEach(function (k) { els[k].style.display = (k === id) ? 'block' : 'none'; });
+    if (id === 'login') renderLogin();
+  }
 
   function showError(el, msg) { el.style.display = 'block'; el.textContent = msg; }
+
+  // 登入畫面：2027 學測倒數 + 隨機語錄（六選一）
+  var QUOTES = ['要好好打招呼', '盡量不要放棄', '要睡好吃好', '有煩惱就找人商量', '去做的話總會有辦法', '不要勉強，自己也要幸福'];
+  function daysToGSAT() {
+    // 以台灣時區的「今天」計算到 2027/1/22（學測第一天）的整數天數
+    var todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    var today = new Date(todayStr + 'T00:00:00Z');
+    var target = new Date('2027-01-22T00:00:00Z');
+    return Math.round((target - today) / 86400000);
+  }
+  function renderLogin() {
+    var d = daysToGSAT(), g = document.getElementById('gsat');
+    g.innerHTML = d > 0 ? '距離 2027 學測還有 <b>' + d + '</b> 天'
+                : d === 0 ? '🎯 今天就是 2027 學測，加油！'
+                : '2027 學測已結束，辛苦了 💪';
+    document.getElementById('quote').textContent = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+  }
 
   // 登入
   document.getElementById('gbtn').addEventListener('click', function () {
