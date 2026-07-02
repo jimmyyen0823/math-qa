@@ -20,6 +20,9 @@
   .wrap { max-width: 860px; margin: 0 auto; }
   header h1 { margin: 0 0 4px; font-size: 24px; }
   header p { margin: 0; opacity: .9; font-size: 14px; }
+  .titlebar { display: flex; align-items: flex-start; gap: 12px; }
+  .logout { margin-left: auto; color: #fff; opacity: .9; font-size: 14px; cursor: pointer; text-decoration: underline; white-space: nowrap; }
+  .logout:hover { opacity: 1; }
   .topbar { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
   .search { flex: 1; min-width: 200px; padding: 11px 14px; border: none; border-radius: 10px; font-size: 15px; outline: none; }
   .btn-ask { background: #fff; color: var(--brand); text-decoration: none; font-weight: 700; padding: 11px 18px; border-radius: 10px; white-space: nowrap; }
@@ -61,7 +64,10 @@
 <body>
 <header>
   <div class="wrap">
-    <h1>📚 學測數學解題站</h1>
+    <div class="titlebar">
+      <h1>📚 學測數學解題站</h1>
+      <span class="logout" id="logout" style="display:none">登出</span>
+    </div>
     <p>同學上傳題目，老師審過的解答都在這裡 — 大家都看得到</p>
     <div class="topbar">
       <input class="search" id="search" placeholder="🔍 搜尋題目、章節、關鍵字…">
@@ -197,7 +203,9 @@
     var tb = document.querySelector('.topbar'); if (tb) tb.style.display = v ? '' : 'none';
     document.getElementById('chips').style.display = v ? '' : 'none';
     listEl.style.display = v ? '' : 'none';
+    document.getElementById('logout').style.display = v ? '' : 'none';   // 登出只在登入後（看得到題庫時）顯示
   }
+  document.getElementById('logout').addEventListener('click', async function () { await sb.auth.signOut(); location.reload(); });
   function showGate(wrongEmail) {
     setBankVisible(false);
     var g = document.getElementById('gate');

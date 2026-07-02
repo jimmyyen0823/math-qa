@@ -66,10 +66,12 @@ function mountLoginGate(mountEl, subtitle) {
   });
 
   document.getElementById('lg-btn').addEventListener('click', function () {
+    // 登入後一律導回題庫頁（站台目錄根＝index.html），不停留在提問頁
+    var dir = window.location.pathname.replace(/[^/]*$/, '');
     sb.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin + window.location.pathname,
+        redirectTo: window.location.origin + dir,
         queryParams: { hd: SCHOOL_DOMAIN, prompt: 'select_account' }
       }
     });
