@@ -61,12 +61,16 @@
   .pending-note { margin-top: 10px; background: #f8fafc; border: 1px dashed var(--line); border-radius: 8px; padding: 10px 14px; color: var(--muted); font-size: 14px; }
   .ansbar { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
   .ansbar .reveal { margin-top: 0; }
-  .votes { display: inline-flex; gap: 8px; margin-left: auto; }
+  .actions { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
+  .votes { display: inline-flex; gap: 8px; }
   .vote { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: #fff; color: var(--muted); border-radius: 999px; padding: 6px 12px; font-size: 14px; cursor: pointer; }
   .vote:hover { border-color: #c7cdd6; }
   .vote.up.active { background: #ecfdf5; border-color: #34d399; color: #059669; }
   .vote.down.active { background: #fef2f2; border-color: #f87171; color: #dc2626; }
   .vote .vc { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .bookmark { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 11px; font-size: 15px; cursor: pointer; filter: grayscale(1); opacity: .55; }
+  .bookmark:hover { border-color: #c7cdd6; opacity: .8; }
+  .bookmark.active { filter: none; opacity: 1; background: #fffbeb; border-color: #fcd34d; }
   /* 登入關卡（.lg / .lg-*）樣式改由 config.js 統一注入，與 upload 頁共用 */
 </style>
 </head>
@@ -90,6 +94,7 @@
 
 <div class="chips" id="chips">
   <span class="chip active" data-cat="mine">我的</span>
+  <span class="chip" data-cat="fav">收藏</span>
   <span class="chip" data-cat="all">全部</span>
   <span class="chip" data-cat="高一">高一</span>
   <span class="chip" data-cat="數A">數A</span>
@@ -107,12 +112,16 @@
   var curCat = 'mine', curQ = '';
   var rows = [];        // 公開題庫（已發布）
   var myRows = [];      // 我的（自己上傳，含各狀態）
+  var favRows = [];     // 收藏（自己收藏的已發布題目）
   var loadedPublic = false, loadedMine = false;
   var STATUS_LABEL = { pending: '待解中', solved: '老師審核中', published: '已發布' };
-  var myUid = null;         // 目前登入者 id（投票用）
+  var myUid = null;         // 目前登入者 id（投票／收藏用）
   var voteCounts = {};      // question_id -> { ups, downs }
   var myVotes = {};         // question_id -> 1(讚) | -1(倒讚)
   var loadedVotes = false;
+  var myBookmarks = {};     // question_id -> true（自己收藏的）
+  var loadedBookmarks = false;
+  var bmBusy = {};          // 防同題連點
 
   function esc(s) { return (s || '').replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
   // 屬性值跳脫（含雙引號）：image_url 是不信任輸入，放進 src="" 前必須跳脫，避免屬性逃逸型 XSS
@@ -127,9 +136,16 @@
       '<button type="button" class="vote down' + (mv === -1 ? ' active' : '') + '" data-q="' + escAttr(r.id) + '" data-v="-1">👎 <span class="vc">' + (c.downs || 0) + '</span></button>' +
       '</span>';
   }
-  // 解答區塊（answer 是老師/藍毒的信任內容，原樣當 HTML 渲染）；看解答旁附點讚/倒讚
+  // 收藏（書籤）按鈕；active = 自己已收藏
+  function bookmarkButton(r) {
+    var on = !!myBookmarks[r.id];
+    return '<button type="button" class="bookmark' + (on ? ' active' : '') + '" data-q="' + escAttr(r.id) + '" aria-label="收藏" title="' + (on ? '取消收藏' : '收藏') + '">🔖</button>';
+  }
+  // 解答區塊（answer 是老師/藍毒的信任內容，原樣當 HTML 渲染）；看解答旁附點讚/倒讚/收藏
   function answerBlock(r) {
-    return '<div class="ansbar"><button class="reveal">看解答 ▾</button>' + voteButtons(r) + '</div>' +
+    return '<div class="ansbar"><button class="reveal">看解答 ▾</button>' +
+             '<span class="actions">' + voteButtons(r) + bookmarkButton(r) + '</span>' +
+           '</div>' +
            '<div class="answer"><span class="lbl">✓ 老師已審核</span><div>' + (r.answer || '') + '</div></div>';
   }
 
@@ -164,16 +180,17 @@
   }
 
   function render() {
-    var isMine = curCat === 'mine';
-    var data = isMine ? myRows : rows;
+    var isMine = curCat === 'mine', isFav = curCat === 'fav';
+    var data = isMine ? myRows : isFav ? favRows : rows;
     var html = data.filter(function (r) {
-      if (!isMine && curCat !== 'all' && r.grade !== curCat) return false;
+      if (!isMine && !isFav && curCat !== 'all' && r.grade !== curCat) return false;
       var hay = ((r.grade || '') + ' ' + (r.chapter || '') + ' ' + (r.question_text || '') + ' ' + (r.answer || '')).toLowerCase();
       return curQ === '' || hay.indexOf(curQ) > -1;
     }).map(isMine ? myCardHtml : cardHtml).join('');
     if (!html) {
       var empty;
       if (isMine) empty = myRows.length ? '找不到符合的題目 🥲' : '你還沒上傳過題目，點右上角「我要問問題」開始吧 😊';
+      else if (isFav) empty = favRows.length ? '找不到符合的題目 🥲' : '你還沒收藏任何題目，點題目上的 🔖 收藏起來 😊';
       else if (!rows.length) empty = '目前還沒有已發布的題目，敬請期待 😊';
       else empty = curQ ? '找不到符合的題目 🥲' : '這個分類目前還沒有題目 😊';
       listEl.innerHTML = '<p class="state">' + empty + '</p>';
@@ -183,7 +200,7 @@
     if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([listEl]);
   }
 
-  // 依分類延遲載入（各只抓一次）：mine → my_questions；其餘 → public_questions
+  // 依分類延遲載入：mine → my_questions；fav → my_bookmarks（每次重抓，收藏會變動）；其餘 → public_questions
   async function ensureData(cat) {
     if (cat === 'mine') {
       if (loadedMine) return true;
@@ -191,6 +208,12 @@
       var res = await sb.from('my_questions').select('*').order('created_at', { ascending: false });
       if (res.error) { listEl.innerHTML = '<p class="state">載入失敗：' + res.error.message + '</p>'; return false; }
       myRows = res.data || []; loadedMine = true; return true;
+    }
+    if (cat === 'fav') {
+      listEl.innerHTML = '<p class="state">載入中…</p>';
+      var resf = await sb.from('my_bookmarks').select('*');   // view 已依收藏時間新到舊排序
+      if (resf.error) { listEl.innerHTML = '<p class="state">載入失敗：' + resf.error.message + '</p>'; return false; }
+      favRows = resf.data || []; return true;
     }
     if (loadedPublic) return true;
     listEl.innerHTML = '<p class="state">載入中…</p>';
@@ -209,10 +232,19 @@
     loadedVotes = true;
   }
 
+  // 載入「自己的收藏」清單（只抓一次，用來標示書籤 active）
+  async function ensureBookmarks() {
+    if (loadedBookmarks) return;
+    var b = await sb.from('bookmarks').select('question_id');
+    if (!b.error) (b.data || []).forEach(function (r) { myBookmarks[r.question_id] = true; });
+    loadedBookmarks = true;
+  }
+
   async function selectCat(cat) {
     curCat = cat;
     if (!(await ensureData(cat))) return;
     await ensureVotes();
+    await ensureBookmarks();
     render();
   }
 
@@ -261,6 +293,43 @@
     }
   }
 
+  // 更新某題所有書籤鈕的 active 狀態
+  function updateBookmarkUI(q) {
+    var on = !!myBookmarks[q];
+    var btns = document.querySelectorAll('.bookmark[data-q="' + q + '"]');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].classList.toggle('active', on);
+      btns[i].title = on ? '取消收藏' : '收藏';
+    }
+  }
+
+  // 收藏 / 取消收藏（再點一次即取消）
+  async function onBookmark(btn) {
+    if (!myUid) return;
+    var q = btn.dataset.q;
+    if (bmBusy[q]) return; bmBusy[q] = true;
+    var was = !!myBookmarks[q], now = !was;
+    if (now) myBookmarks[q] = true; else delete myBookmarks[q];
+    updateBookmarkUI(q);
+    try {
+      var res = now
+        ? await sb.from('bookmarks').upsert({ question_id: q, user_id: myUid }, { onConflict: 'question_id,user_id', ignoreDuplicates: true })
+        : await sb.from('bookmarks').delete().eq('question_id', q).eq('user_id', myUid);
+      if (res && res.error) throw res.error;
+      // 在「收藏」分頁取消收藏 → 從清單移除該題並重繪（render 會依搜尋/數量顯示正確的清單或空狀態）
+      if (!now && curCat === 'fav') {
+        favRows = favRows.filter(function (r) { return r.id !== q; });
+        render();
+      }
+    } catch (err) {                              // 失敗→還原
+      if (was) myBookmarks[q] = true; else delete myBookmarks[q];
+      updateBookmarkUI(q);
+      alert('收藏沒成功，請稍後再試：' + (err && err.message ? err.message : err));
+    } finally {
+      bmBusy[q] = false;
+    }
+  }
+
   document.getElementById('search').addEventListener('input', function () { curQ = this.value.trim().toLowerCase(); render(); });
   document.getElementById('chips').addEventListener('click', function (e) {
     if (!e.target.classList.contains('chip')) return;
@@ -269,8 +338,11 @@
     selectCat(e.target.dataset.cat);
   });
   document.addEventListener('click', function (e) {
-    var vbtn = e.target.closest ? e.target.closest('.vote') : null;
+    if (!e.target.closest) return;
+    var vbtn = e.target.closest('.vote');
     if (vbtn) { onVote(vbtn); return; }
+    var bbtn = e.target.closest('.bookmark');
+    if (bbtn) { onBookmark(bbtn); return; }
     if (!e.target.classList.contains('reveal')) return;
     var card = e.target.closest('.card'); if (!card) return;
     var ans = card.querySelector('.answer'); if (!ans) return;
