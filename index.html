@@ -73,6 +73,20 @@
   .bookmark:hover { border-color: #c7cdd6; }
   .bookmark.active { background: #fffbeb; border-color: #fcd34d; }
   .bookmark.active svg { fill: #f59e0b; stroke: #f59e0b; }
+  .comments { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .cbtn { background: none; border: none; color: var(--brand); font-weight: 600; font-size: 14px; cursor: pointer; padding: 0; }
+  .cbox { margin-top: 12px; }
+  .clist { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+  .citem { background: #f8fafc; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .cmeta { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .cauthor { font-weight: 700; color: var(--ink); }
+  .cdel { margin-left: auto; background: none; border: none; color: #dc2626; font-size: 12px; cursor: pointer; padding: 0; }
+  .cbody { font-size: 14px; white-space: pre-wrap; word-break: break-word; }
+  .cempty { color: var(--muted); font-size: 13px; margin: 4px 0; }
+  .cform { display: flex; gap: 8px; }
+  .cinput { flex: 1; border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font-size: 14px; outline: none; font-family: inherit; }
+  .csend { background: var(--brand); color: #fff; border: none; border-radius: 10px; padding: 9px 16px; font-weight: 600; font-size: 14px; cursor: pointer; white-space: nowrap; }
+  .csend:disabled { opacity: .6; }
   /* 登入關卡（.lg / .lg-*）樣式改由 config.js 統一注入，與 upload 頁共用 */
 </style>
 </head>
@@ -124,6 +138,11 @@
   var myBookmarks = {};     // question_id -> true（自己收藏的）
   var loadedBookmarks = false;
   var bmBusy = {};          // 防同題連點
+  var isAdmin = false;      // 是否為管理者 jimmy（可刪任何人留言）
+  var ADMIN_EMAIL = 'jimmy0823@tkgsh.tn.edu.tw';
+  var commentCount = {};    // question_id -> 留言數（統計，一次載入）
+  var commentsByQ = {};     // question_id -> 留言陣列（展開時才抓）
+  var loadedCommentCounts = false;
 
   function esc(s) { return (s || '').replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
   // 屬性值跳脫（含雙引號）：image_url 是不信任輸入，放進 src="" 前必須跳脫，避免屬性逃逸型 XSS
@@ -152,6 +171,39 @@
            '<div class="answer"><span class="lbl">✓ 老師已審核</span><div>' + (r.answer || '') + '</div></div>';
   }
 
+  // 留言區（每題題目下；懶載入：展開才抓該題留言）
+  function commentSection(r) {
+    var n = commentCount[r.id] || 0;
+    return '<div class="comments" data-q="' + escAttr(r.id) + '">' +
+      '<button type="button" class="cbtn">💬 留言 <span class="cc">' + n + '</span></button>' +
+      '<div class="cbox" style="display:none">' +
+        '<div class="clist"></div>' +
+        '<div class="cform"><input class="cinput" type="text" maxlength="500" placeholder="寫下留言…"><button type="button" class="csend">送出</button></div>' +
+      '</div>' +
+    '</div>';
+  }
+  // 單則留言（body/author_name 為不信任輸入，一律跳脫；刪除鈕只在本人或管理者顯示）
+  function commentItemHtml(c) {
+    var canDel = c.mine || isAdmin;
+    var date = (c.created_at || '').slice(0, 10);
+    return '<div class="citem">' +
+      '<div class="cmeta"><span class="cauthor">' + esc(c.author_name || '匿名') + '</span><span class="ctime">' + date + '</span>' +
+        (canDel ? '<button type="button" class="cdel" data-id="' + escAttr(c.id) + '">刪除</button>' : '') +
+      '</div>' +
+      '<div class="cbody">' + esc(c.body) + '</div>' +
+    '</div>';
+  }
+  function renderCommentList(qid) {
+    var box = document.querySelector('.comments[data-q="' + qid + '"] .clist');
+    if (!box) return;
+    var list = commentsByQ[qid] || [];
+    box.innerHTML = list.length ? list.map(commentItemHtml).join('') : '<p class="cempty">還沒有人留言，來當第一個 😊</p>';
+  }
+  function updateCommentCount(qid) {
+    var el = document.querySelector('.comments[data-q="' + qid + '"] .cc');
+    if (el) el.textContent = commentsByQ[qid] ? commentsByQ[qid].length : (commentCount[qid] || 0);
+  }
+
   // 公開題庫卡片（已發布）
   function cardHtml(r) {
     var date = r.published_at ? r.published_at.slice(0, 10) : '';
@@ -159,7 +211,7 @@
     var body = r.answer ? answerBlock(r) : '<div class="pending-note">這題已發布，解答稍後補上 😊</div>';
     return '<article class="card">' +
       '<div class="meta"><span class="tag">' + esc(r.grade) + '・' + esc(r.chapter) + '</span><span>' + date + '</span></div>' +
-      qt + imgHtml(r.image_url) + body +
+      qt + imgHtml(r.image_url) + body + commentSection(r) +
       '</article>';
   }
 
@@ -176,9 +228,10 @@
     } else {
       body = '<div class="pending-note">老師正在審核解答，發布後就看得到 😊</div>';
     }
+    var comments = (r.status === 'published') ? commentSection(r) : '';   // 只有已發布題目有留言區
     return '<article class="card">' +
       '<div class="meta"><span class="tag">' + esc(r.grade) + '・' + esc(r.chapter) + '</span>' + badge + '<span>' + date + '</span></div>' +
-      qt + imgHtml(r.image_url) + body +
+      qt + imgHtml(r.image_url) + body + comments +
       '</article>';
   }
 
@@ -243,12 +296,64 @@
     loadedBookmarks = true;
   }
 
+  // 載入各題留言數（只抓一次；留言內容展開才抓）
+  async function ensureCommentCounts() {
+    if (loadedCommentCounts) return;
+    var r = await sb.from('comment_counts').select('*');
+    if (!r.error) (r.data || []).forEach(function (x) { commentCount[x.question_id] = +x.n || 0; });
+    loadedCommentCounts = true;
+  }
+
   async function selectCat(cat) {
     curCat = cat;
     if (!(await ensureData(cat))) return;
     await ensureVotes();
     await ensureBookmarks();
+    await ensureCommentCounts();
     render();
+  }
+
+  // 抓某題的留言並渲染（展開留言區、送出、刪除後都會呼叫）
+  async function loadComments(qid, listBox) {
+    if (listBox) listBox.innerHTML = '<p class="cempty">載入中…</p>';
+    var r = await sb.from('question_comments').select('*').eq('question_id', qid).order('created_at', { ascending: true });
+    if (r.error) { if (listBox) listBox.innerHTML = '<p class="cempty">留言載入失敗：' + esc(r.error.message) + '</p>'; return; }
+    commentsByQ[qid] = r.data || [];
+    commentCount[qid] = commentsByQ[qid].length;   // 同步計數，讓之後重繪的數字正確
+    renderCommentList(qid);
+    updateCommentCount(qid);
+  }
+
+  // 送出留言
+  async function onPostComment(sendBtn) {
+    if (!myUid) return;
+    var wrap = sendBtn.closest('.comments'), qid = wrap.dataset.q;
+    var input = wrap.querySelector('.cinput'), body = input.value.trim();
+    if (!body) return;
+    sendBtn.disabled = true;
+    try {
+      var res = await sb.from('comments').insert({ question_id: qid, body: body });
+      if (res.error) throw res.error;
+      input.value = '';
+      await loadComments(qid, wrap.querySelector('.clist'));   // 重抓以取得新留言與其 id
+    } catch (err) {
+      alert('留言沒送出，請稍後再試：' + (err && err.message ? err.message : err));
+    } finally {
+      sendBtn.disabled = false;
+    }
+  }
+
+  // 刪除留言（本人或管理者；後端 RLS 亦強制）
+  async function onDeleteComment(delBtn) {
+    if (!confirm('確定刪除這則留言？')) return;
+    var wrap = delBtn.closest('.comments'), qid = wrap.dataset.q, id = delBtn.dataset.id;
+    try {
+      var res = await sb.from('comments').delete().eq('id', id);
+      if (res.error) throw res.error;
+      await loadComments(qid, wrap.querySelector('.clist'));
+    } catch (err) {
+      alert('刪除失敗，請稍後再試：' + (err && err.message ? err.message : err));
+    }
   }
 
   // 只更新某題兩顆投票鈕的 active 狀態與數字（不整頁重繪，避免收合已展開的解答）
@@ -346,11 +451,33 @@
     if (vbtn) { onVote(vbtn); return; }
     var bbtn = e.target.closest('.bookmark');
     if (bbtn) { onBookmark(bbtn); return; }
+    var cdel = e.target.closest('.cdel');
+    if (cdel) { onDeleteComment(cdel); return; }
+    var csend = e.target.closest('.csend');
+    if (csend) { onPostComment(csend); return; }
+    var cbtn = e.target.closest('.cbtn');
+    if (cbtn) {   // 展開/收合留言區；第一次展開才抓留言
+      var wrap = cbtn.closest('.comments'), box = wrap.querySelector('.cbox');
+      var open = box.style.display === 'none';
+      box.style.display = open ? 'block' : 'none';
+      if (open) {   // 已快取→直接用快取重繪（重繪後 DOM 是空的）；未快取→抓
+        if (commentsByQ[wrap.dataset.q]) renderCommentList(wrap.dataset.q);
+        else loadComments(wrap.dataset.q, wrap.querySelector('.clist'));
+      }
+      return;
+    }
     if (!e.target.classList.contains('reveal')) return;
     var card = e.target.closest('.card'); if (!card) return;
     var ans = card.querySelector('.answer'); if (!ans) return;
     ans.classList.toggle('open');
     e.target.textContent = ans.classList.contains('open') ? '收合解答 ▴' : '看解答 ▾';
+  });
+  // 留言輸入框按 Enter 送出
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    if (!(e.target.classList && e.target.classList.contains('cinput'))) return;
+    e.preventDefault();
+    var form = e.target.closest('.cform'); if (form) onPostComment(form.querySelector('.csend'));
   });
 
   // ===== 登入關卡：沒登入就不給看題庫（登入元件在 config.js）=====
@@ -378,7 +505,8 @@
     if (!session) { showGate(null); return; }
     var email = (session.user.email || '').toLowerCase();
     if (!email.endsWith('@' + SCHOOL_DOMAIN)) { await sb.auth.signOut(); showGate(email); return; }
-    myUid = session.user.id;   // 記住登入者 id（投票用）
+    myUid = session.user.id;          // 記住登入者 id（投票／收藏／留言用）
+    isAdmin = (email === ADMIN_EMAIL); // 管理者可刪任何人留言
     setBankVisible(true);   // 已用學校帳號登入 → 顯示題庫
     selectCat('mine');      // 預設只載「我的」，避免一進來就抓全部題庫
   }
