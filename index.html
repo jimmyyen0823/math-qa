@@ -59,6 +59,14 @@
   .status.solved { background: #eff6ff; color: #1d4ed8; }
   .status.published { background: #ecfdf5; color: #059669; }
   .pending-note { margin-top: 10px; background: #f8fafc; border: 1px dashed var(--line); border-radius: 8px; padding: 10px 14px; color: var(--muted); font-size: 14px; }
+  .ansbar { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .ansbar .reveal { margin-top: 0; }
+  .votes { display: inline-flex; gap: 8px; margin-left: auto; }
+  .vote { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: #fff; color: var(--muted); border-radius: 999px; padding: 6px 12px; font-size: 14px; cursor: pointer; }
+  .vote:hover { border-color: #c7cdd6; }
+  .vote.up.active { background: #ecfdf5; border-color: #34d399; color: #059669; }
+  .vote.down.active { background: #fef2f2; border-color: #f87171; color: #dc2626; }
+  .vote .vc { font-weight: 700; font-variant-numeric: tabular-nums; }
   /* 登入關卡（.lg / .lg-*）樣式改由 config.js 統一注入，與 upload 頁共用 */
 </style>
 </head>
@@ -101,23 +109,35 @@
   var myRows = [];      // 我的（自己上傳，含各狀態）
   var loadedPublic = false, loadedMine = false;
   var STATUS_LABEL = { pending: '待解中', solved: '老師審核中', published: '已發布' };
+  var myUid = null;         // 目前登入者 id（投票用）
+  var voteCounts = {};      // question_id -> { ups, downs }
+  var myVotes = {};         // question_id -> 1(讚) | -1(倒讚)
+  var loadedVotes = false;
 
   function esc(s) { return (s || '').replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
   // 屬性值跳脫（含雙引號）：image_url 是不信任輸入，放進 src="" 前必須跳脫，避免屬性逃逸型 XSS
   function escAttr(s) { return (s || '').replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   // 只接受 http(s) 圖片網址，並對 src 做屬性跳脫（雙重防線）
   function imgHtml(url) { return /^https?:\/\//i.test(url || '') ? '<img class="qimg" src="' + escAttr(url) + '" alt="題目照片">' : ''; }
-  // 解答區塊（answer 是老師/藍毒的信任內容，原樣當 HTML 渲染）
-  function answerBlock(answerHtml) {
-    return '<button class="reveal">看解答 ▾</button>' +
-           '<div class="answer"><span class="lbl">✓ 老師已審核</span><div>' + (answerHtml || '') + '</div></div>';
+  // 點讚 / 倒讚按鈕（顯示票數；active = 自己目前的選擇）
+  function voteButtons(r) {
+    var mv = myVotes[r.id], c = voteCounts[r.id] || { ups: 0, downs: 0 };
+    return '<span class="votes">' +
+      '<button type="button" class="vote up' + (mv === 1 ? ' active' : '') + '" data-q="' + escAttr(r.id) + '" data-v="1">👍 <span class="vc">' + (c.ups || 0) + '</span></button>' +
+      '<button type="button" class="vote down' + (mv === -1 ? ' active' : '') + '" data-q="' + escAttr(r.id) + '" data-v="-1">👎 <span class="vc">' + (c.downs || 0) + '</span></button>' +
+      '</span>';
+  }
+  // 解答區塊（answer 是老師/藍毒的信任內容，原樣當 HTML 渲染）；看解答旁附點讚/倒讚
+  function answerBlock(r) {
+    return '<div class="ansbar"><button class="reveal">看解答 ▾</button>' + voteButtons(r) + '</div>' +
+           '<div class="answer"><span class="lbl">✓ 老師已審核</span><div>' + (r.answer || '') + '</div></div>';
   }
 
   // 公開題庫卡片（已發布）
   function cardHtml(r) {
     var date = r.published_at ? r.published_at.slice(0, 10) : '';
     var qt = r.question_text ? '<div class="q">' + esc(r.question_text) + '</div>' : '';
-    var body = r.answer ? answerBlock(r.answer) : '<div class="pending-note">這題已發布，解答稍後補上 😊</div>';
+    var body = r.answer ? answerBlock(r) : '<div class="pending-note">這題已發布，解答稍後補上 😊</div>';
     return '<article class="card">' +
       '<div class="meta"><span class="tag">' + esc(r.grade) + '・' + esc(r.chapter) + '</span><span>' + date + '</span></div>' +
       qt + imgHtml(r.image_url) + body +
@@ -131,7 +151,7 @@
     var badge = '<span class="status ' + escAttr(r.status) + '">' + (STATUS_LABEL[r.status] || esc(r.status)) + '</span>';
     var body;
     if (r.status === 'published') {
-      body = r.answer ? answerBlock(r.answer) : '<div class="pending-note">這題已發布，解答稍後補上 😊</div>';
+      body = r.answer ? answerBlock(r) : '<div class="pending-note">這題已發布，解答稍後補上 😊</div>';
     } else if (r.status === 'pending') {
       body = '<div class="pending-note">老師還沒開始解這題，發布後就看得到解答 😊</div>';
     } else {
@@ -179,9 +199,66 @@
     rows = res2.data || []; loadedPublic = true; return true;
   }
 
+  // 載入票數統計與「自己的投票」（只抓一次）
+  async function ensureVotes() {
+    if (loadedVotes) return;
+    var c = await sb.from('answer_vote_counts').select('*');
+    if (!c.error) (c.data || []).forEach(function (r) { voteCounts[r.question_id] = { ups: +r.ups || 0, downs: +r.downs || 0 }; });
+    var m = await sb.from('answer_votes').select('question_id,vote');
+    if (!m.error) (m.data || []).forEach(function (r) { myVotes[r.question_id] = +r.vote; });
+    loadedVotes = true;
+  }
+
   async function selectCat(cat) {
     curCat = cat;
-    if (await ensureData(cat)) render();
+    if (!(await ensureData(cat))) return;
+    await ensureVotes();
+    render();
+  }
+
+  // 只更新某題兩顆投票鈕的 active 狀態與數字（不整頁重繪，避免收合已展開的解答）
+  function updateVoteUI(q) {
+    var c = voteCounts[q] || { ups: 0, downs: 0 }, mv = myVotes[q];
+    var btns = document.querySelectorAll('.vote[data-q="' + q + '"]');
+    for (var i = 0; i < btns.length; i++) {
+      var b = btns[i], isUp = b.dataset.v === '1';
+      b.classList.toggle('active', isUp ? mv === 1 : mv === -1);
+      var vc = b.querySelector('.vc');
+      if (vc) vc.textContent = isUp ? (c.ups || 0) : (c.downs || 0);
+    }
+  }
+
+  // 點讚 / 倒讚：同一個再點＝取消；點另一個＝切成後者、取消前者
+  var voting = {};   // 防同題連點競態
+  async function onVote(btn) {
+    if (!myUid) return;
+    var q = btn.dataset.q, dir = parseInt(btn.dataset.v, 10);
+    if (voting[q]) return; voting[q] = true;
+    var prev = myVotes[q];                       // undefined | 1 | -1
+    var c = voteCounts[q] || (voteCounts[q] = { ups: 0, downs: 0 });
+    var snapUps = c.ups || 0, snapDowns = c.downs || 0;
+    var next = (prev === dir) ? 0 : dir;         // 再點同一個→取消；否則切成這個
+    // 樂觀更新本地狀態
+    if (prev === 1) c.ups = Math.max(0, (c.ups || 0) - 1);
+    if (prev === -1) c.downs = Math.max(0, (c.downs || 0) - 1);
+    if (next === 1) c.ups = (c.ups || 0) + 1;
+    if (next === -1) c.downs = (c.downs || 0) + 1;
+    if (next === 0) delete myVotes[q]; else myVotes[q] = next;
+    updateVoteUI(q);
+    // 寫入後端（回傳 error 與網路層 reject 都要還原；finally 確保解鎖，避免鎖死）
+    try {
+      var res = (next === 0)
+        ? await sb.from('answer_votes').delete().eq('question_id', q).eq('user_id', myUid)
+        : await sb.from('answer_votes').upsert({ question_id: q, user_id: myUid, vote: next }, { onConflict: 'question_id,user_id' });
+      if (res && res.error) throw res.error;
+    } catch (err) {                              // 失敗→還原本地狀態
+      c.ups = snapUps; c.downs = snapDowns;
+      if (prev === undefined) delete myVotes[q]; else myVotes[q] = prev;
+      updateVoteUI(q);
+      alert('投票沒成功，請稍後再試：' + (err && err.message ? err.message : err));
+    } finally {
+      voting[q] = false;
+    }
   }
 
   document.getElementById('search').addEventListener('input', function () { curQ = this.value.trim().toLowerCase(); render(); });
@@ -192,8 +269,11 @@
     selectCat(e.target.dataset.cat);
   });
   document.addEventListener('click', function (e) {
+    var vbtn = e.target.closest ? e.target.closest('.vote') : null;
+    if (vbtn) { onVote(vbtn); return; }
     if (!e.target.classList.contains('reveal')) return;
-    var ans = e.target.nextElementSibling;
+    var card = e.target.closest('.card'); if (!card) return;
+    var ans = card.querySelector('.answer'); if (!ans) return;
     ans.classList.toggle('open');
     e.target.textContent = ans.classList.contains('open') ? '收合解答 ▴' : '看解答 ▾';
   });
@@ -223,6 +303,7 @@
     if (!session) { showGate(null); return; }
     var email = (session.user.email || '').toLowerCase();
     if (!email.endsWith('@' + SCHOOL_DOMAIN)) { await sb.auth.signOut(); showGate(email); return; }
+    myUid = session.user.id;   // 記住登入者 id（投票用）
     setBankVisible(true);   // 已用學校帳號登入 → 顯示題庫
     selectCat('mine');      // 預設只載「我的」，避免一進來就抓全部題庫
   }
