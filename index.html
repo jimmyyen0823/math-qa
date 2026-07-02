@@ -22,10 +22,9 @@
   header p { margin: 0; opacity: .9; font-size: 14px; }
   .titlebar { display: flex; align-items: center; gap: 12px; }
   .topbar { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
-  .search { flex: 0 1 340px; min-width: 130px; padding: 11px 14px; border: none; border-radius: 10px; font-size: 15px; outline: none; }
-  /* 三顆按鈕同款：白底、品牌色字；登出移到 topbar 最右 */
+  .search { flex: 1 1 200px; min-width: 130px; padding: 11px 14px; border: none; border-radius: 10px; font-size: 15px; outline: none; }
+  /* 三顆按鈕同款：白底、品牌色字 */
   .btn-ask, .btn-fb, .logout { background: #fff; color: var(--brand); border: none; text-decoration: none; font-weight: 700; font-size: 16px; padding: 11px 18px; border-radius: 10px; white-space: nowrap; cursor: pointer; }
-  .btn-ask { margin-left: auto; }
   .btn-ask:hover, .btn-fb:hover, .logout:hover { background: var(--brand-soft); }
   /* 使用心得/建議 彈窗 */
   .modal-backdrop { position: fixed; inset: 0; background: rgba(15,20,35,.5); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
