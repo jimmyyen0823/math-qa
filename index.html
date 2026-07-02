@@ -68,9 +68,11 @@
   .vote.up.active { background: #ecfdf5; border-color: #34d399; color: #059669; }
   .vote.down.active { background: #fef2f2; border-color: #f87171; color: #dc2626; }
   .vote .vc { font-weight: 700; font-variant-numeric: tabular-nums; }
-  .bookmark { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 11px; font-size: 15px; cursor: pointer; filter: grayscale(1); opacity: .55; }
-  .bookmark:hover { border-color: #c7cdd6; opacity: .8; }
-  .bookmark.active { filter: none; opacity: 1; background: #fffbeb; border-color: #fcd34d; }
+  .bookmark { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 11px; cursor: pointer; }
+  .bookmark svg { display: block; width: 16px; height: 16px; fill: none; stroke: #9ca3af; stroke-width: 2; stroke-linejoin: round; }
+  .bookmark:hover { border-color: #c7cdd6; }
+  .bookmark.active { background: #fffbeb; border-color: #fcd34d; }
+  .bookmark.active svg { fill: #f59e0b; stroke: #f59e0b; }
   /* 登入關卡（.lg / .lg-*）樣式改由 config.js 統一注入，與 upload 頁共用 */
 </style>
 </head>
@@ -136,10 +138,11 @@
       '<button type="button" class="vote down' + (mv === -1 ? ' active' : '') + '" data-q="' + escAttr(r.id) + '" data-v="-1">👎 <span class="vc">' + (c.downs || 0) + '</span></button>' +
       '</span>';
   }
-  // 收藏（書籤）按鈕；active = 自己已收藏
+  // 收藏（書籤）按鈕；active = 自己已收藏。用 SVG 書籤（垂直、尾巴朝正下方，不像 emoji 會歪）
+  var BOOKMARK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>';
   function bookmarkButton(r) {
     var on = !!myBookmarks[r.id];
-    return '<button type="button" class="bookmark' + (on ? ' active' : '') + '" data-q="' + escAttr(r.id) + '" aria-label="收藏" title="' + (on ? '取消收藏' : '收藏') + '">🔖</button>';
+    return '<button type="button" class="bookmark' + (on ? ' active' : '') + '" data-q="' + escAttr(r.id) + '" aria-label="收藏" title="' + (on ? '取消收藏' : '收藏') + '">' + BOOKMARK_SVG + '</button>';
   }
   // 解答區塊（answer 是老師/藍毒的信任內容，原樣當 HTML 渲染）；看解答旁附點讚/倒讚/收藏
   function answerBlock(r) {
