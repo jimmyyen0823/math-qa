@@ -54,8 +54,8 @@ function mountLoginGate(mountEl, subtitle) {
     '<div class="lg-err" id="lg-err"></div>';
 
   var d = daysToGSAT();
-  document.getElementById('lg-gsat').innerHTML = d > 0 ? '距離 2027 學測還有 <b>' + d + '</b> 天'
-    : d === 0 ? '🎯 今天就是 2027 學測，加油！' : '2027 學測已結束，辛苦了 💪';
+  document.getElementById('lg-gsat').innerHTML = d > 0 ? '距學測還有 <b>' + d + '</b> 天'
+    : d === 0 ? '🎯 今天就是學測，加油！' : '學測已結束，辛苦了 💪';
 
   var q = document.getElementById('lg-quote'), text = LOGIN_QUOTES[Math.floor(Math.random() * LOGIN_QUOTES.length)];
   text.split('').forEach(function (ch) {
