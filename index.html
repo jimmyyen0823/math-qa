@@ -35,6 +35,10 @@
   .modal-body { padding: 16px 20px; overflow-y: auto; }
   .modal-foot { padding: 14px 20px; border-top: 1px solid var(--line); }
   .fb-anon { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 13px; color: var(--muted); cursor: pointer; }
+  .fb-notice { background: var(--brand-soft); border: 1px solid #dbe0fb; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; font-size: 13px; color: var(--ink); line-height: 1.75; }
+  .fb-notice h4 { margin: 0 0 6px; color: var(--brand); font-size: 14px; }
+  .fb-notice ol { margin: 0; padding-left: 20px; }
+  .fb-notice li { margin: 5px 0; }
   .chips { display: flex; gap: 8px; flex-wrap: wrap; padding: 16px 20px 0; max-width: 860px; margin: 0 auto; }
   .chip { border: 1px solid var(--line); background: #fff; color: var(--muted); padding: 6px 13px; border-radius: 999px; font-size: 13px; cursor: pointer; }
   .chip.active { background: var(--brand); color: #fff; border-color: var(--brand); }
@@ -137,7 +141,18 @@
       <h3>💬 使用心得 / 建議</h3>
       <button class="modal-close" id="fb-close" type="button" aria-label="關閉">✕</button>
     </div>
-    <div class="modal-body"><div class="clist" id="fb-list"></div></div>
+    <div class="modal-body">
+      <div class="fb-notice">
+        <h4>📢 公告</h4>
+        <ol>
+          <li>任何關於網站使用上的建議、遇到的不方便、想新增的功能都可以在這裡留言告訴我，這會成為我更新網站的重要參考。</li>
+          <li>老師沒有學過任何程式、網頁設計、美編。做這個不是我的專業或義務，純粹是興趣跟給同學方便，提任何要求或做任何發言時請注意禮貌。</li>
+          <li>如果這個網頁對你的學習有幫助，歡迎留言讓我知道。我跟我的 AI 會很開心。</li>
+          <li>不要做無關發言或聊天，我會刪。</li>
+        </ol>
+      </div>
+      <div class="clist" id="fb-list"></div>
+    </div>
     <div class="modal-foot">
       <div class="cform">
         <input class="cinput" id="fb-input" type="text" maxlength="500" placeholder="寫下你的心得或建議…">
@@ -591,12 +606,13 @@
     document.getElementById('logout').style.display = v ? '' : 'none';   // 登出只在登入後（看得到題庫時）顯示
   }
   document.getElementById('logout').addEventListener('click', async function () { await sb.auth.signOut(); location.reload(); });
-  function showGate(wrongEmail) {
+  function showGate(wrongEmail, notice) {
     setBankVisible(false);
     var g = document.getElementById('gate');
     g.style.display = 'block';
     var gate = mountLoginGate(g, '請先用學校帳號登入才能瀏覽題庫');
     if (wrongEmail) gate.showError('這個帳號（' + wrongEmail + '）不是學校帳號，請改用 @' + SCHOOL_DOMAIN + ' 登入');
+    else if (notice) gate.showError(notice);
   }
 
   // 預設先藏題庫外觀，確認登入後才顯示（避免未登入者看到閃一下）
@@ -607,6 +623,7 @@
     if (!session) { showGate(null); return; }
     var email = (session.user.email || '').toLowerCase();
     if (!email.endsWith('@' + SCHOOL_DOMAIN)) { await sb.auth.signOut(); showGate(email); return; }
+    if (!(await passesDailyLogin())) { showGate(null, '每天都需要重新登入一次喔，請再次用學校帳號登入 🙂'); return; }
     myUid = session.user.id;          // 記住登入者 id（投票／收藏／留言用）
     myEmail = email;
     isAdmin = (email === ADMIN_EMAIL); // 管理者可刪任何人留言

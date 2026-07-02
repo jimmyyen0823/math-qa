@@ -156,6 +156,7 @@
       showLogin('這個帳號（' + email + '）不是學校帳號，請改用 @' + SCHOOL_DOMAIN + ' 登入');
       return;
     }
+    if (!(await passesDailyLogin())) { showLogin('每天都需要重新登入一次喔，請再次用學校帳號登入 🙂'); return; }
     var name = session.user.user_metadata.full_name || session.user.user_metadata.name || email;
     document.getElementById('whoami').textContent = '已登入：' + name + '（' + email + '）';
     document.getElementById('avatar').textContent = (name[0] || '?');

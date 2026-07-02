@@ -16,6 +16,24 @@ function daysToGSAT() {
   return Math.round((target - today) / 86400000);
 }
 
+// ===== 每天（台灣日期）需重新登入一次 =====
+// 台灣時區的今天（YYYY-MM-DD）
+function taipeiDate() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+}
+// 回傳 true＝今天已登入可繼續；false＝已跨過台灣日期（已登出，需重新登入）。兩頁 init 共用。
+async function passesDailyLogin() {
+  var today = taipeiDate(), stored = null;
+  try { stored = localStorage.getItem('authDay'); } catch (e) {}
+  if (stored && stored !== today) {            // 上次登入是「昨天(以前)」→ 強制重新登入
+    await sb.auth.signOut();
+    try { localStorage.removeItem('authDay'); } catch (e) {}
+    return false;
+  }
+  try { localStorage.setItem('authDay', today); } catch (e) {}   // 記錄/更新為今天
+  return true;
+}
+
 // ===== 共用登入關卡（index 與 upload 共用同一套視覺與邏輯，改這裡兩頁一起變）=====
 const LOGIN_QUOTES = ['要好好打招呼', '盡量不要放棄', '要睡好吃好', '有煩惱就找人商量', '去做的話總會有辦法', '不要勉強，自己也要幸福'];
 
