@@ -21,14 +21,12 @@
   header h1 { margin: 0 0 4px; font-size: 24px; }
   header p { margin: 0; opacity: .9; font-size: 14px; }
   .titlebar { display: flex; align-items: center; gap: 12px; }
-  .logout { margin-left: auto; color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; white-space: nowrap;
-    background: rgba(255,255,255,.18); border: 1.5px solid rgba(255,255,255,.6); border-radius: 10px; padding: 9px 18px; }
-  .logout:hover { background: rgba(255,255,255,.3); }
   .topbar { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
-  .search { flex: 1 1 160px; min-width: 130px; max-width: 340px; padding: 11px 14px; border: none; border-radius: 10px; font-size: 15px; outline: none; }
-  .btn-ask { background: #fff; color: var(--brand); text-decoration: none; font-weight: 700; padding: 11px 18px; border-radius: 10px; white-space: nowrap; }
-  .btn-fb { background: rgba(255,255,255,.18); color: #fff; border: 1.5px solid rgba(255,255,255,.6); font-weight: 700; padding: 11px 16px; border-radius: 10px; white-space: nowrap; cursor: pointer; font-size: 15px; }
-  .btn-fb:hover { background: rgba(255,255,255,.3); }
+  .search { flex: 0 1 340px; min-width: 130px; padding: 11px 14px; border: none; border-radius: 10px; font-size: 15px; outline: none; }
+  /* 三顆按鈕同款：白底、品牌色字；登出移到 topbar 最右 */
+  .btn-ask, .btn-fb, .logout { background: #fff; color: var(--brand); border: none; text-decoration: none; font-weight: 700; font-size: 16px; padding: 11px 18px; border-radius: 10px; white-space: nowrap; cursor: pointer; }
+  .btn-ask { margin-left: auto; }
+  .btn-ask:hover, .btn-fb:hover, .logout:hover { background: var(--brand-soft); }
   /* 使用心得/建議 彈窗 */
   .modal-backdrop { position: fixed; inset: 0; background: rgba(15,20,35,.5); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
   .modal { background: #fff; border-radius: 16px; width: 100%; max-width: 560px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
@@ -106,13 +104,13 @@
   <div class="wrap">
     <div class="titlebar">
       <h1>📚 學測數學解題站</h1>
-      <span class="logout" id="logout" style="display:none">登出</span>
     </div>
     <p>同學上傳題目，老師審過的解答都在這裡 — 大家都看得到</p>
     <div class="topbar">
       <input class="search" id="search" placeholder="🔍 搜尋題目、章節…">
       <a class="btn-ask" href="upload.html">✏️ 我要問問題</a>
       <button class="btn-fb" id="btn-fb" type="button">💬 使用心得/建議</button>
+      <button class="logout" id="logout" type="button" style="display:none">登出</button>
     </div>
   </div>
 </header>
