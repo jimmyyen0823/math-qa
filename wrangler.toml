@@ -1,0 +1,6 @@
+name = "math-qa"
+compatibility_date = "2024-11-01"
+
+# 純靜態網站：直接把 repo 根目錄的檔案當靜態資源上架，不需 Worker 程式碼
+[assets]
+directory = "./"
