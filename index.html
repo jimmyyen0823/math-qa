@@ -349,12 +349,11 @@
     if (!confirm('確定刪除這則留言？')) return;
     var wrap = delBtn.closest('.comments'), qid = wrap.dataset.q, id = delBtn.dataset.id;
     try {
-      var res = await sb.from('comments').delete({ count: 'exact' }).eq('id', id);
+      // 用 RPC（POST）刪除，避免 HTTP DELETE 被 CORS/代理吃掉 authorization
+      var res = await sb.rpc('delete_comment', { cid: id });
       if (res.error) throw res.error;
-      if (!res.count) {   // RLS 擋下、實際 0 筆被刪
-        alert('沒能刪除這則留言（後端刪了 0 筆，被權限擋下）。\n\n目前登入：' + (myEmail || '未知') +
-              '\n管理者權限：' + (isAdmin ? '是' : '否') +
-              '\n\n刪別人的留言需用管理者帳號 ' + ADMIN_EMAIL + ' 登入；\n若這是你自己的留言仍失敗，代表後端刪除規則(SQL)沒設好。');
+      if (!res.data) {   // 回傳刪除筆數；0 = 沒權限
+        alert('沒能刪除這則留言（沒有權限）。\n目前登入：' + (myEmail || '未知') + '（管理者：' + (isAdmin ? '是' : '否') + '）');
         return;
       }
       await loadComments(qid, wrap.querySelector('.clist'));
