@@ -139,6 +139,7 @@
   var loadedBookmarks = false;
   var bmBusy = {};          // 防同題連點
   var isAdmin = false;      // 是否為管理者 jimmy（可刪任何人留言）
+  var myEmail = '';         // 目前登入者信箱（診斷用）
   var ADMIN_EMAIL = 'jimmy0823@tkgsh.tn.edu.tw';
   var commentCount = {};    // question_id -> 留言數（統計，一次載入）
   var commentsByQ = {};     // question_id -> 留言陣列（展開時才抓）
@@ -343,13 +344,19 @@
     }
   }
 
-  // 刪除留言（本人或管理者；後端 RLS 亦強制）
+  // 刪除留言（本人或管理者；後端 RLS 亦強制）。用 count 偵測「刪了 0 筆」的被擋情況
   async function onDeleteComment(delBtn) {
     if (!confirm('確定刪除這則留言？')) return;
     var wrap = delBtn.closest('.comments'), qid = wrap.dataset.q, id = delBtn.dataset.id;
     try {
-      var res = await sb.from('comments').delete().eq('id', id);
+      var res = await sb.from('comments').delete({ count: 'exact' }).eq('id', id);
       if (res.error) throw res.error;
+      if (!res.count) {   // RLS 擋下、實際 0 筆被刪
+        alert('沒能刪除這則留言（後端刪了 0 筆，被權限擋下）。\n\n目前登入：' + (myEmail || '未知') +
+              '\n管理者權限：' + (isAdmin ? '是' : '否') +
+              '\n\n刪別人的留言需用管理者帳號 ' + ADMIN_EMAIL + ' 登入；\n若這是你自己的留言仍失敗，代表後端刪除規則(SQL)沒設好。');
+        return;
+      }
       await loadComments(qid, wrap.querySelector('.clist'));
     } catch (err) {
       alert('刪除失敗，請稍後再試：' + (err && err.message ? err.message : err));
@@ -506,6 +513,7 @@
     var email = (session.user.email || '').toLowerCase();
     if (!email.endsWith('@' + SCHOOL_DOMAIN)) { await sb.auth.signOut(); showGate(email); return; }
     myUid = session.user.id;          // 記住登入者 id（投票／收藏／留言用）
+    myEmail = email;
     isAdmin = (email === ADMIN_EMAIL); // 管理者可刪任何人留言
     setBankVisible(true);   // 已用學校帳號登入 → 顯示題庫
     selectCat('mine');      // 預設只載「我的」，避免一進來就抓全部題庫
