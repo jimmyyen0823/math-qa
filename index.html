@@ -113,6 +113,7 @@
       <input class="search" id="search" placeholder="🔍 搜尋題目、章節…">
       <a class="btn-ask" href="upload.html">✏️ 我要問問題</a>
       <button class="btn-fb" id="btn-fb" type="button">💬 使用心得/建議</button>
+      <a class="btn-ask" id="admin-link" href="admin.html" style="display:none">🔐 提問者名單</a>
       <button class="logout" id="logout" type="button" style="display:none">登出</button>
     </div>
   </div>
@@ -627,6 +628,7 @@
     myUid = session.user.id;          // 記住登入者 id（投票／收藏／留言用）
     myEmail = email;
     isAdmin = (email === ADMIN_EMAIL); // 管理者可刪任何人留言
+    document.getElementById('admin-link').style.display = isAdmin ? '' : 'none';
     setBankVisible(true);   // 已用學校帳號登入 → 顯示題庫
     selectCat('mine');      // 預設只載「我的」，避免一進來就抓全部題庫
   }

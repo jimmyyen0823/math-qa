@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>提問者名單 — 學測數學解題站</title>
+<style>
+  :root {
+    --bg: #f5f6fa; --card: #fff; --ink: #1f2433; --muted: #6b7280;
+    --brand: #4f46e5; --brand-soft: #eef2ff; --line: #e5e7eb; --ok: #059669;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif; line-height: 1.7; }
+  header { background: linear-gradient(135deg, #4f46e5, #6366f1); color: #fff; padding: 24px 20px 18px; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  header h1 { margin: 0 0 4px; font-size: 22px; }
+  header p { margin: 0; opacity: .9; font-size: 14px; }
+  .topbar { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+  .search { flex: 1 1 200px; min-width: 130px; padding: 10px 14px; border: none; border-radius: 10px; font-size: 14px; outline: none; }
+  .back, .logout { background: #fff; color: var(--brand); border: none; text-decoration: none; font-weight: 700; font-size: 14px; padding: 10px 16px; border-radius: 10px; white-space: nowrap; cursor: pointer; }
+  .back:hover, .logout:hover { background: var(--brand-soft); }
+  main { max-width: 1000px; margin: 0 auto; padding: 18px 20px 60px; }
+  .state { text-align: center; color: var(--muted); padding: 44px 0; }
+  .tbl-wrap { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 13.5px; }
+  th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { background: var(--brand-soft); color: var(--brand); font-weight: 700; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  .who { font-weight: 700; }
+  .email { color: var(--muted); font-size: 12.5px; }
+  .qtext { max-width: 320px; white-space: pre-wrap; word-break: break-word; color: var(--muted); }
+  .status { padding: 2px 9px; border-radius: 6px; font-weight: 600; font-size: 12px; white-space: nowrap; }
+  .status.pending { background: #fff7ed; color: #c2410c; }
+  .status.solved { background: #eff6ff; color: #1d4ed8; }
+  .status.published { background: #ecfdf5; color: #059669; }
+  .yn { color: var(--muted); white-space: nowrap; }
+  .yn.y { color: var(--ok); font-weight: 700; }
+  /* 登入關卡（.lg / .lg-*）樣式改由 config.js 統一注入，與 index/upload 頁共用 */
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>🔐 提問者名單</h1>
+    <p>只有管理者看得到這頁的姓名／信箱，公開題庫一律匿名</p>
+    <div class="topbar">
+      <input class="search" id="search" placeholder="🔍 搜尋姓名、信箱、章節、題目…">
+      <a class="back" href="index.html">← 回題庫</a>
+      <button class="logout" id="logout" type="button" style="display:none">登出</button>
+    </div>
+  </div>
+</header>
+
+<!-- 登入關卡（未登入時顯示，內容由 config.js 的 mountLoginGate 注入）-->
+<div id="gate" style="display:none"></div>
+
+<main id="main" style="display:none">
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>日期</th><th>狀態</th><th>年級／章節</th><th>提問者</th><th>題目</th><th>已通知</th></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <p class="state" id="empty" style="display:none"></p>
+</main>
+
+<p class="state" id="denied" style="display:none">這頁僅限管理者使用。</p>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+  var ADMIN_EMAIL = 'jimmy0823@tkgsh.tn.edu.tw';
+  var STATUS_LABEL = { pending: '待解中', solved: '待審核', published: '已發布' };
+  var rows = [], curQ = '';
+
+  function esc(s) { return (s || '').replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+
+  function rowHtml(r) {
+    var date = (r.created_at || '').slice(0, 10);
+    var qt = r.question_text ? esc(r.question_text).slice(0, 60) : '（拍照題）';
+    return '<tr>' +
+      '<td>' + date + '</td>' +
+      '<td><span class="status ' + esc(r.status) + '">' + (STATUS_LABEL[r.status] || esc(r.status)) + '</span></td>' +
+      '<td>' + esc(r.grade) + '・' + esc(r.chapter) + '</td>' +
+      '<td><div class="who">' + esc(r.display_name || '—') + '</div><div class="email">' + esc(r.email || '') + '</div></td>' +
+      '<td class="qtext">' + qt + '</td>' +
+      '<td class="yn' + (r.notified_at ? ' y' : '') + '">' + (r.notified_at ? '✓ 已通知' : '—') + '</td>' +
+      '</tr>';
+  }
+
+  function render() {
+    var q = curQ;
+    var filtered = rows.filter(function (r) {
+      if (!q) return true;
+      var hay = ((r.display_name || '') + ' ' + (r.email || '') + ' ' + (r.grade || '') + ' ' + (r.chapter || '') + ' ' + (r.question_text || '')).toLowerCase();
+      return hay.indexOf(q) > -1;
+    });
+    document.getElementById('rows').innerHTML = filtered.map(rowHtml).join('');
+    var empty = document.getElementById('empty');
+    if (!filtered.length) { empty.style.display = 'block'; empty.textContent = rows.length ? '找不到符合的題目' : '目前還沒有任何提問'; }
+    else empty.style.display = 'none';
+  }
+
+  document.getElementById('search').addEventListener('input', function () { curQ = this.value.trim().toLowerCase(); render(); });
+  document.getElementById('logout').addEventListener('click', async function () { await sb.auth.signOut(); location.reload(); });
+
+  function showGate(wrongEmail, notice) {
+    var g = document.getElementById('gate');
+    g.style.display = 'block';
+    var gate = mountLoginGate(g, '請先用學校帳號登入');
+    if (wrongEmail) gate.showError('這個帳號（' + wrongEmail + '）不是學校帳號，請改用 @' + SCHOOL_DOMAIN + ' 登入');
+    else if (notice) gate.showError(notice);
+  }
+
+  async function init() {
+    var session = (await sb.auth.getSession()).data.session;
+    if (!session) { showGate(null); return; }
+    var email = (session.user.email || '').toLowerCase();
+    if (!email.endsWith('@' + SCHOOL_DOMAIN)) { await sb.auth.signOut(); showGate(email); return; }
+    if (!(await passesDailyLogin())) { showGate(null, '每天都需要重新登入一次喔，請再次用學校帳號登入 🙂'); return; }
+    if (email !== ADMIN_EMAIL) { document.getElementById('denied').style.display = 'block'; return; }
+
+    document.getElementById('logout').style.display = '';
+    document.getElementById('main').style.display = 'block';
+    var res = await sb.from('admin_questions').select('*');
+    if (res.error) { document.getElementById('main').innerHTML = '<p class="state">載入失敗：' + esc(res.error.message) + '</p>'; return; }
+    rows = res.data || [];
+    render();
+  }
+  init();
+</script>
+</body>
+</html>
